@@ -41,7 +41,7 @@ dependencies:
   # New Features - Voice & Audio
   speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
-  record: ^5.1.2
+  record: ^5.2.1
   audioplayers: ^6.1.0
   
   # New Features - AI & ML
