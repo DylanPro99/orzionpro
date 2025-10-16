@@ -10,32 +10,81 @@ dependencies:
   flutter:
     sdk: flutter
   
+  # Core dependencies
   cupertino_icons: ^1.0.8
   http: ^1.2.1
   provider: ^6.1.2
   shared_preferences: ^2.2.3
-  flutter_markdown: ^0.7.3+1
-  image_picker: ^1.1.2
-  file_picker: ^8.0.7
+  image_picker: ^1.0.8
+  file_picker: ^8.0.0
   path_provider: ^2.1.3
-  uuid: ^4.4.2
+  uuid: ^4.4.0
   intl: ^0.19.0
+  vector_math: ^2.1.4
+  
+  # UI/UX & Animations
   flutter_animate: ^4.5.0
   animated_text_kit: ^4.2.2
-  markdown: ^7.2.2
-  url_launcher: ^6.3.0
+  url_launcher: ^6.2.6
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
   flutter_chat_bubble: ^2.0.2
-  animated_toggle_switch: ^0.8.3
-  google_fonts: ^6.2.1
-  fl_chart: ^0.68.0
-  lottie: ^3.1.2
+  animated_toggle_switch: ^0.8.2
+  google_fonts: ^6.1.0
+  fl_chart: ^0.66.2
+  lottie: ^3.1.0
+  
+  # Markdown
+  flutter_markdown: ^0.6.18+3
+  markdown: ^7.2.1
+  
+  # New Features - Voice & Audio
+  speech_to_text: ^7.0.0
+  flutter_tts: ^3.8.5
+  record: ^5.0.5
+  audioplayers: ^6.1.0
+  
+  # New Features - AI & ML
+  google_mlkit_text_recognition: ^0.11.0
+  google_mlkit_translation: ^0.9.0
+  
+  # New Features - Storage & Database
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  crypto: ^3.0.3
+  
+  # New Features - Sharing & Export
+  share_plus: ^7.2.2
+  pdf: ^3.10.8
+  printing: ^5.12.0
+  
+  # New Features - Advanced UI
+  flutter_slidable: ^3.1.0
+  flutter_staggered_grid_view: ^0.7.0
+  confetti: ^0.7.0
+  photo_view: ^0.14.0
+  flutter_speed_dial: ^7.0.0
+  flutter_keyboard_visibility: ^6.0.0
+  badges: ^3.1.2
+  
+  # New Features - Utilities
+  flutter_native_splash: ^2.4.0
+  connectivity_plus: ^6.0.3
+  package_info_plus: ^4.2.0
+  device_info_plus: ^10.1.0
+  permission_handler: ^11.3.1
+  vibration: ^1.8.4
+  haptic_feedback: ^0.5.1+1
+  clipboard: ^0.1.3
+  qr_flutter: ^4.1.0
+  image_gallery_saver: ^2.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^3.0.2
+  build_runner: ^2.4.9
+  mockito: ^5.4.4
 
 flutter:
   uses-material-design: true

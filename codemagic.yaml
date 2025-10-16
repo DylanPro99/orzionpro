@@ -1,0 +1,392 @@
+workflows:
+  android-workflow:
+    name: Android Workflow
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      android_signing:
+        - orzion_keystore
+      groups:
+        - google_play
+        - analytics
+      vars:
+        PACKAGE_NAME: "ai.orzion"
+        GOOGLE_PLAY_TRACK: "internal"
+        FLUTTER_BUILD_MODE: "release"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/build
+    triggering:
+      events:
+        - push
+        - tag
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+        - pattern: 'develop'
+          include: true
+        - pattern: 'release/*'
+          include: true
+    scripts:
+      - name: Set up local.properties
+        script: | 
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Set up key.properties for signing
+        script: | 
+          cat >> "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD  
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_KEYSTORE_PATH
+          EOF
+      - name: Get Flutter packages
+        script: | 
+          flutter pub get
+      - name: Flutter clean
+        script: | 
+          flutter clean
+      - name: Flutter analyze
+        script: | 
+          flutter analyze --no-fatal-infos
+        ignore_failure: false
+      - name: Flutter unit tests
+        script: | 
+          flutter test --coverage --reporter expanded
+        ignore_failure: true
+      - name: Generate code coverage report
+        script: | 
+          if [ -f "coverage/lcov.info" ]; then
+            echo "Code coverage generated successfully"
+          fi
+        ignore_failure: true
+      - name: Build APK with Flutter (Release)
+        script: | 
+          flutter build apk --release \
+            --obfuscate \
+            --split-debug-info=build/app/outputs/symbols \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=ENV=production \
+            --target-platform android-arm64
+      - name: Build APK (ARM 32-bit)
+        script: | 
+          flutter build apk --release \
+            --obfuscate \
+            --split-debug-info=build/app/outputs/symbols \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=ENV=production \
+            --target-platform android-arm
+      - name: Build AAB with Flutter (Release)
+        script: | 
+          flutter build appbundle --release \
+            --obfuscate \
+            --split-debug-info=build/app/outputs/symbols \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=ENV=production
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/*.apk
+      - build/**/outputs/**/mapping.txt
+      - build/app/outputs/symbols/**
+      - coverage/lcov.info
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - dev@orzion.ai
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: $GOOGLE_PLAY_TRACK
+        submit_as_draft: true
+
+  android-debug-workflow:
+    name: Android Debug Workflow
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      groups:
+        - debug
+      vars:
+        PACKAGE_NAME: "ai.orzion"
+      flutter: stable
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: 'develop'
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: | 
+          flutter pub get
+      - name: Flutter analyze
+        script: | 
+          flutter analyze --no-fatal-infos
+      - name: Flutter unit tests
+        script: | 
+          flutter test
+      - name: Build APK (Debug)
+        script: | 
+          flutter build apk --debug
+    artifacts:
+      - build/**/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - dev@orzion.ai
+        notify:
+          failure: true
+
+  ios-workflow:
+    name: iOS Workflow
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    integrations:
+      app_store_connect: orzion
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: ai.orzion
+      groups:
+        - app_store_credentials
+        - analytics
+      vars:
+        APP_ID: 1234567890
+        BUNDLE_IDENTIFIER: ai.orzion
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/ios/Pods
+    triggering:
+      events:
+        - push
+        - tag
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+        - pattern: 'develop'
+          include: true
+        - pattern: 'release/*'
+          include: true
+    scripts:
+      - name: Set up code signing
+        script: | 
+          keychain initialize
+          app-store-connect fetch-signing-files $BUNDLE_IDENTIFIER --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Install CocoaPods dependencies
+        script: | 
+          find . -name "Podfile" -execdir pod install --repo-update \;
+      - name: Get Flutter packages
+        script: | 
+          flutter pub get
+      - name: Flutter clean
+        script: | 
+          flutter clean
+      - name: Flutter analyze
+        script: | 
+          flutter analyze --no-fatal-infos
+        ignore_failure: false
+      - name: Flutter unit tests
+        script: | 
+          flutter test --coverage
+        ignore_failure: true
+      - name: Flutter build IPA (Release)
+        script: | 
+          flutter build ipa --release \
+            --obfuscate \
+            --split-debug-info=build/ios/symbols \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=ENV=production \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/symbols/**
+      - /tmp/xcodebuild_logs/*.log
+      - coverage/lcov.info
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - dev@orzion.ai
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+          - Beta Testers
+        submit_to_app_store: false
+
+  web-workflow:
+    name: Web Workflow
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      groups:
+        - web_deploy
+      vars:
+        FLUTTER_WEB_RENDERER: "canvaskit"
+      flutter: stable
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+        - pattern: 'develop'
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: | 
+          flutter pub get
+      - name: Flutter analyze
+        script: | 
+          flutter analyze --no-fatal-infos
+        ignore_failure: true
+      - name: Flutter unit tests
+        script: | 
+          flutter test --platform chrome
+        ignore_failure: true
+      - name: Build web (Release)
+        script: | 
+          flutter build web --release \
+            --web-renderer $FLUTTER_WEB_RENDERER \
+            --dart-define=ENV=production \
+            --source-maps \
+            --pwa-strategy offline-first
+      - name: Optimize web build
+        script: | 
+          cd build/web
+          # Compress assets
+          find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" \) -exec gzip -k -9 {} \;
+    artifacts:
+      - build/web/**
+    publishing:
+      email:
+        recipients:
+          - dev@orzion.ai
+        notify:
+          success: true
+          failure: true
+
+  all-platforms-workflow:
+    name: Build All Platforms
+    instance_type: mac_mini_m2
+    max_build_duration: 180
+    environment:
+      android_signing:
+        - orzion_keystore
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: ai.orzion
+      groups:
+        - google_play
+        - app_store_credentials
+        - analytics
+      vars:
+        PACKAGE_NAME: "ai.orzion"
+        BUNDLE_IDENTIFIER: ai.orzion
+        GOOGLE_PLAY_TRACK: "internal"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/.dart_tool
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*.*.*'
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: | 
+          flutter pub get
+      - name: Flutter analyze
+        script: | 
+          flutter analyze --no-fatal-infos
+      - name: Flutter tests
+        script: | 
+          flutter test --coverage
+      - name: Build Android AAB
+        script: | 
+          flutter build appbundle --release \
+            --obfuscate \
+            --split-debug-info=build/android/symbols \
+            --build-name=${CM_TAG#v} \
+            --build-number=$BUILD_NUMBER
+      - name: Set up iOS code signing
+        script: | 
+          keychain initialize
+          app-store-connect fetch-signing-files $BUNDLE_IDENTIFIER --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+          find . -name "Podfile" -execdir pod install \;
+      - name: Build iOS IPA
+        script: | 
+          flutter build ipa --release \
+            --obfuscate \
+            --split-debug-info=build/ios/symbols \
+            --build-name=${CM_TAG#v} \
+            --build-number=$BUILD_NUMBER
+      - name: Build Web
+        script: | 
+          flutter build web --release --web-renderer canvaskit
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/ios/ipa/*.ipa
+      - build/web/**
+      - build/android/symbols/**
+      - build/ios/symbols/**
+    publishing:
+      email:
+        recipients:
+          - dev@orzion.ai
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: production
+        submit_as_draft: true
+      app_store_connect:
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+        submit_to_app_store: true
